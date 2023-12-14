@@ -514,6 +514,14 @@ if $DO_VGPU; then
     vcfgclone ${TARGET}/vgpuConfig.xml 0x1B38 0x0 0x1D01 0x0000		# GTX 1030 -> Tesla P40
 fi
 
+if $DO_LK6P; then
+    applypatch ${TARGET} vgpu-kvm-kernel-6.3-compat-common.patch
+    if [ -d ${TARGET}/kernel/nvidia-drm -a -d ${TARGET}/kernel/nvidia-uvm ]; then
+        applypatch ${TARGET} vgpu-kvm-kernel-6.3-compat-drmuvm.patch
+    fi
+fi
+
+
 if $DO_MRGD && $DOCKER_HACK; then
     echo -e "\ndocker-hack: fixing merge driver issue for nvidia-container-toolkit by replacing ${VER_BLOB} with ${VER_TARGET} in all files..."
     set -eu
@@ -544,12 +552,6 @@ if $DO_MRGD && $DOCKER_HACK; then
     echo -e "done\n"
 fi
 
-if $DO_LK6P; then
-    applypatch ${TARGET} vgpu-kvm-kernel-6.3-compat-common.patch
-    if [ -d ${TARGET}/kernel/nvidia-drm -a -d ${TARGET}/kernel/nvidia-uvm ]; then
-        applypatch ${TARGET} vgpu-kvm-kernel-6.3-compat-drmuvm.patch
-    fi
-fi
 
 $ENVYPROBES && {
     applypatch ${TARGET} envy_probes-ioctl-hooks-from-mbuchel.patch
