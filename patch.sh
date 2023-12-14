@@ -17,6 +17,7 @@ TESTSIGN=true
 SETUP_TESTSIGN=false
 REPACK=false
 SWITCH_GRID_TO_GNRL=false
+DOCKER_HACK=false
 
 if [ ! -e "${GNRL}.run" -a -e "${GRID}.run" ]; then
     SWITCH_GRID_TO_GNRL=true
@@ -101,6 +102,10 @@ do
         --envy-probes)
             shift
             ENVYPROBES=true
+            ;;
+        --docker-hack)
+            shift
+            DOCKER_HACK=true
             ;;
         *)
             echo "Unknown option $1"
@@ -281,6 +286,11 @@ libspatch() {
         -e 's/\xa2\x01\xc0\x18\x00\x03\x0c\x70/\x10\x00\xc0\x18\x00\x03\x0c\x30/g' \
         -i "$@"
 }
+
+if [ "${VER_BLOB}" == "${VER_TARGET}" ]; then
+    echo -e "docker-hack: no need to apply docker hack since vgpu-kvm and general driver have the same version"
+    DOCKER_HACK=false
+fi
 
 $SETUP_TESTSIGN && {
     which makecert &>/dev/null || die "install makecert (mono-devel) (https://github.com/mono/mono/tree/main/mcs/tools/security)"
@@ -500,7 +510,38 @@ if $DO_VGPU; then
     vcfgclone ${TARGET}/vgpuConfig.xml 0x13F2 0x0 0x13C0 0x0000		# GTX 980 -> Tesla M60
     vcfgclone ${TARGET}/vgpuConfig.xml 0x13F2 0x0 0x13D7 0x0000		# GTX 980M -> Tesla M60
     vcfgclone ${TARGET}/vgpuConfig.xml 0x13BD 0x1160 0x139A 0x0000	# GTX 950M -> Tesla M10
-    echo
+    vcfgclone ${TARGET}/vgpuConfig.xml 0x1E30 0x12BA 0x1f95 0x0000  # GTX 1650 Ti Mobile 4GB
+    vcfgclone ${TARGET}/vgpuConfig.xml 0x1B38 0x0 0x1D01 0x0000		# GTX 1030 -> Tesla P40
+fi
+
+if $DO_MRGD && $DOCKER_HACK; then
+    echo -e "\ndocker-hack: fixing merge driver issue for nvidia-container-toolkit by replacing ${VER_BLOB} with ${VER_TARGET} in all files..."
+    set -eu
+
+    _rename() {
+        VER_BLOB="$1"
+        VER_TARGET="$2"
+        SOURCE="$3"
+        TARGET=$(echo "$SOURCE" | sed "s@$VER_BLOB@$VER_TARGET@")
+        mv -vf "$SOURCE" "$TARGET"
+    }
+    export -f _rename
+
+    # gather files to patch
+    files=( $(grep -rl "${VER_BLOB}" "${TARGET}") )
+
+    for file in "${files[@]}"; do
+        echo "docker-hack: patching file ${file}"
+        sed -i "s/${VER_BLOB}/${VER_TARGET}/g" "${file}"
+    done
+
+    echo "docker-hack: renaming files with ${VER_BLOB} to ${VER_TARGET}..."
+    find "${TARGET}" -type f -name "*${VER_BLOB}*" -exec bash -c "_rename \"${VER_BLOB}\" \"${VER_TARGET}\" \"{}\"" \;
+
+    echo "docker-hack: to enable cuda in docker setting cudahost=1 is mandatory!"
+    echo "docker-hack: to do that execute 'echo \"options nvidia cudahost=1\" | sudo tee /etc/modprobe.d/nvidia-cuda.conf' on your host to enable cuda"
+
+    echo -e "done\n"
 fi
 
 if $DO_LK6P; then

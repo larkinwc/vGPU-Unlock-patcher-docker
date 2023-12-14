@@ -7,10 +7,10 @@ This repository contains a submodule, so please clone this project recursively, 
 
 ## Usage
 
-1. download original vgpu kvm `.run` files as available in a grid package `.zip` release, use the version matching the name of chosen branch of this project (the latest one is recommended)
-   - versions of vgpu releases are listed [here](https://docs.nvidia.com/grid/index.html)
-   - downloads are available from nvidia site [here](http://nvid.nvidia.com/dashboard/), evaluation account may be obtained [here](http://www.nvidia.com/object/vgpu-evaluation.html)
-   - if you need merged driver, download also standard linux desktop driver .run file, the version as set in GNRL in the beginning of the patch.sh script
+1. Pre-download original `.run` files:
+   | Name | Version | Links |
+   | ----------- | ----------- | ----------- |
+   | NVIDIA-GRID-Linux-KVM-525.85.07-525.85.05-528.24 | Grid v15.1 | [Nvidia Download](https://enterprise-support.nvidia.com/s/login/?startURL=%2Fs%2F%3Ft%3D1657093205198), [Google Drive](https://drive.google.com/drive/folders/1Mwk0diSegzHx-7BeJdujPa1Vgyw5fd3s) |
 
 2. optionally edit `patch.sh` file to add support for your gpu if it was not included yet
    - search for "vcfgclone" lines, like for example:
@@ -57,12 +57,19 @@ This repository contains a submodule, so please clone this project recursively, 
       ```
 
 ## Changelog
-Please see commits history [here](https://github.com/VGPU-Community-Drivers/vGPU-Unlock-patcher/commits/).
+
+- added `--docker-hack` option to fix `nvidia-docker-toolkit` not being able to detect the correct libraries
+- `cudahost=1` nvidia module option of merged driver now works with all versions, enables also raytracing on host
+- multiple fixes and tuning in the default profiles for rtx 2070+
+- simplified patching focusing only on vgpu kvm blob, split the patch for merged driver extension
+- supports setup of general-merge converting grid variant to general in case general run file is not available
+- multiple versions in branches: 460.107, 470.141, 510.73, 510.85
+- with 460.107 version ray tracing works on host with general-merge driver even with windows VMs
 
 ### Other Options 
-- any options need to be put before the target name
-- `--lk6-patches` include compat patches for kernel versions >= 6.1
-- `--repack` option that can be used to create unlocked/patched `.run` file (usually not necessary as you can simply start nvidia-installer from the directory).
+`--lk6-patches` include compat patches for kernel versions >= 6.1
+`--repack` option that can be used to create unlocked/patched `.run` file (usually not necessary as you can simply start nvidia-installer from the directory).
+`--docker-hack` option to patch the driver version to make it compatible with the `nvidia-docker-toolkit` so vGPU functionality and Docker can be used simultaneously with a merged driver
 
 ### Credits
 - Thanks to the discord user @mbuchel for the experimental patches
